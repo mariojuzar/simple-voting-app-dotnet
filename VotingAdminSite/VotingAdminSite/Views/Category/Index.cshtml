@@ -1,0 +1,259 @@
+﻿@{
+    ViewData["Title"] = "Category";
+}
+
+
+<div class="container">
+    <div class="row">
+        <h3 class="card-title col-md-3">
+            Categories
+        </h3>
+        <div class="col-md-6">
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addNewCategory">
+                Add New
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12" id="resultCategory">
+            
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="addNewCategory" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <form id="create-category-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Create New Category</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="col-form-label">Category Name</label>
+                        <input type="text" class="form-control" id="category-name" name="category-name" required="required" autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="updateCategory" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <form id="update-category-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Update Category</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="col-form-label">Category Name</label>
+                        <input type="hidden" id="updated-id" />
+                        <input type="text" class="form-control" value="" id="category-name-update" name="category-name-update" required="required" autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteCategory" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <form id="delete-category-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Delete Category</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="col-form-label">Are you sure to delete this category?</label>
+                        <input type="hidden" id="deleted-id" />
+                        <input type="text" class="form-control" value="" disabled id="category-name-delete" name="category-name-delete">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+@section scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var sessionID = getCookie("SessionID");
+            if (sessionID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                        window.location.href = "Account/Login"
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        var tbody = "<tbody>"
+                        var idx = 1
+                        var x
+                        for (x = 0; x < result.data.length; x++) {
+                            tbody += '<tr>'
+                                + '<td>' + idx + '</td>'
+                                + '<td>' + result.data[x].name + '</td>'
+                                + '<td>'
+                                + '<a class="btn btn-info getDateWhenUpdate" href="#" role="button" data-id="' + result.data[x].categoryId + '" data-name="' + result.data[x].name + '" data-toggle="modal" data-target="#updateCategory">Edit</a> |'
+                                + '<a class="btn btn-danger getDateWhenDelete" href="#" role="button" data-id="' + result.data[x].categoryId + '" data-name="' + result.data[x].name + '" data-toggle="modal" data-target="#deleteCategory">Delete</a>'
+                                + '</td>'
+                                + '</tr >';
+                            idx += 1
+                        }
+                        tbody += "</tbody>"
+                        var table = '<div class="col-md-8">'
+                            + '<table class="table" >'
+                            + '<thead>'
+                            + '<tr>'
+                            + '<th scope="col">#</th>'
+                            + '<th scope="col">Category Name</th>'
+                            + '<th scope="col">Action</th>'
+                            + '</tr>'
+                            + '</thead>'
+                            + tbody
+                            + '</table>'
+                            + '</div >';
+
+                        document.getElementById("resultCategory").innerHTML = table;
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+        });
+
+        $(document).on("click", ".getDateWhenUpdate", function () {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            $(".modal-body #updated-id").val(id);
+            $(".modal-body #category-name-update").val(name);
+        });
+
+        $(document).on("click", ".getDateWhenDelete", function () {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            $(".modal-body #deleted-id").val(id);
+            $(".modal-body #category-name-delete").val(name);
+        });
+
+        $("#create-category-form").submit(function (e) {
+            var name = $("#category-name").val()
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            var body = '{"Name":"' + name + '"}';
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                data: body,
+                dataType: 'json',
+                method: "POST",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/Category"
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+        });
+
+        $("#update-category-form").submit(function (e) {
+            var name = $("#category-name-update").val()
+            var id = $("#updated-id").val()
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            var body = '{"CategoryId": "' + id + '", "Name":"' + name +'"}'
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                data: body,
+                dataType: 'json',
+                method: "PUT",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/Category"
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+        });
+
+        $("#delete-category-form").submit(function (e) {
+            var id = $("#deleted-id").val()
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories/" + id,
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                dataType: 'json',
+                method: "DELETE",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/Category"
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+        });
+    </script>
+}

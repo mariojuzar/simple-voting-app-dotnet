@@ -1,0 +1,169 @@
+﻿@{
+    ViewData["Title"] = "Edit Voting Item";
+}
+
+
+<div class="container">
+    <div class="row">
+        <h3 class="card-title col-md-6">
+            Voting Item Detail
+        </h3>
+    </div>
+    <div class="row">
+        <div class="col-md-9">
+            <form id="update-voting-item-form">
+                <input type="hidden" id="item-id" value="" />
+                <div class="form-group">
+                    <label class="col-form-label">Name</label>
+                    <input type="text" class="form-control" id="item-name" disabled name="item-name" required="required" autofocus>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Description</label>
+                    <textarea class="form-control" id="description" rows="3" disabled required="required"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Categories</label>
+                    <input class="form-control" type="text" id="resultCateggories" disabled/>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Due Date</label>
+                    <input type="text" class="form-control" id="due-date" rows="3" disabled required="required"/>
+                </div>
+                <div class="col-md-6 offset-md-6">
+                    <div >
+                        <a type="button" class="btn btn-secondary" asp-area="" asp-controller="VotingItem" asp-action="Index">
+                            Cancel
+                        </a>
+                    </div>
+                    
+                    <div id="result-button">
+
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="voteItem" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <form id="vote-item-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Vote for Item</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="col-form-label">Are you sure to vote this voting item?</label>
+                        <input type="hidden" id="vote-id" />
+                        <input type="text" class="form-control" value="" disabled id="item-name-vote" name="item-name-vote">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Vote!</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var url = window.location.pathname;
+            var id = url.substring(url.lastIndexOf('/') + 1);
+            var sessionID = getCookie("SessionID");
+            if (sessionID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                        window.location.href = "/"
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-search/search/" + id,
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        document.getElementById("item-id").value = result.data.votingItemID;
+                        document.getElementById("item-name").value = result.data.name;
+                        document.getElementById("description").value = result.data.description;
+                        document.getElementById("due-date").value = result.data.dueDate;
+                        document.getElementById("resultCateggories").value = getCategories(result.data.categories);
+                        var buttonVote = '<a class="btn btn-success getDateWhenVote" href="#" role="button" data-id="' + result.data.votingItemID + '" data-name="' + result.data.name + '" data-toggle="modal" data-target="#voteItem">Vote</a>'
+                        document.getElementById("result-button").innerHTML = buttonVote;
+                    } else if (result.status == "401") {
+                        window.location.href = "/Account/Login"
+                    }
+                }
+            });
+        });
+
+        function getCategories(categories) {
+            var result = ""
+            var x
+            for (x = 0; x < categories.length; x++) {
+                result += categories[x].name + " "
+            }
+            return result
+        }
+
+        $(document).on("click", ".getDateWhenVote", function () {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            $(".modal-body #vote-id").val(id);
+            $(".modal-body #item-name-vote").val(name);
+        });
+
+        $("#vote-item-form").submit(function (e) {
+            var id = $("#vote-id").val()
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            var body = '{"VotingItemID":"' + id + '"}';
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/votes",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                data: body,
+                dataType: 'json',
+                method: "POST",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/"
+                    } else if (result.status == "401") {
+                        window.location.href = "/Account/Login"
+                    } else if (result.status == "400") {
+                        $('#voteItem').modal('hide');
+                    }
+                },
+                error: function (result) {
+                    if (result.status == "401") {
+                        window.location.href = "/Account/Login"
+                    }
+                    $('#voteItem').modal('hide');
+                }
+            });
+        });
+    </script>
+}

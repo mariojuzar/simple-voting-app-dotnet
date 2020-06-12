@@ -1,0 +1,164 @@
+﻿@{
+    ViewData["Title"] = "Edit Voting Item";
+}
+
+
+<div class="container">
+    <div class="row">
+        <h3 class="card-title col-md-6">
+            Create New Voting Item
+        </h3>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <form id="update-voting-item-form">
+                <input type="hidden" id="item-id" value="" />
+                <div class="form-group">
+                    <label class="col-form-label">Name</label>
+                    <input type="text" class="form-control" id="item-name" name="item-name" required="required" autofocus>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Description</label>
+                    <textarea class="form-control" id="description" rows="3" required="required"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Choose Categories (Allow Multiple)</label>
+                    <div id="resultCategory">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Choose Due Date</label>
+                    <div class="input-group date">
+                        <div class="input-group-addon">
+                            <span class="glyphicon glyphicon-th"></span>
+                        </div>
+                        <input placeholder="Input Due Date" type="text" class="form-control datepicker" name="due-date" id="due-date">
+                    </div>
+                </div>
+                <div class="col-md-6 offset-md-6">
+                    <a type="button" class="btn btn-secondary" asp-area="" asp-controller="VotingItem" asp-action="Index">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var url = window.location.pathname;
+            var id = url.substring(url.lastIndexOf('/') + 1);
+            var sessionID = getCookie("SessionID");
+
+            if (sessionID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                        window.location.href = "Account/Login"
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        var itemSelect = '<select multiple class="form-control" id="categories">';
+
+                        var x
+                        for (x = 0; x < result.data.length; x++) {
+                            itemSelect += '<option value="' + result.data[x].categoryId + '">' + result.data[x].name + '</option>'
+                        }
+                        itemSelect += '</select>'
+
+                        document.getElementById("resultCategory").innerHTML = itemSelect;
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/voting-items/" + id,
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        document.getElementById("item-id").value = result.data.votingItemID;
+                        document.getElementById("item-name").value = result.data.name;
+                        document.getElementById("description").value = result.data.description;
+                        $("input.datepicker").value = result.data.dueDate
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+
+
+        });
+
+        $("#update-voting-item-form").submit(function (e) {
+            var id = $("#item-id").val()
+            var name = $("#item-name").val()
+            var description = $("#description").val()
+            var date = $("input.datepicker").val();
+            var categories = getSelectValues(document.getElementsByTagName('select')[0])
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            var body = '{"VotingItemID":"' + id + '", "Name":"' + name + '", "Description":"'
+                + description + '", "DueDate":"' + date + '", "Categories":[' + categories + ']}'
+            
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/voting-items",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                data: body,
+                dataType: 'json',
+                method: "PUT",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/VotingItem"
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                }
+            });
+        });
+
+        function getSelectValues(select) {
+            var result = [];
+            var options = select && select.options;
+            var opt;
+
+            for (var i = 0, iLen = options.length; i < iLen; i++) {
+                opt = options[i];
+
+                if (opt.selected) {
+                    result.push('"' + opt.value + '"');
+                }
+            }
+            return result;
+        }
+    </script>
+}

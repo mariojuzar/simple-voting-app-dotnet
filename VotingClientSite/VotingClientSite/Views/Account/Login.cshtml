@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Voting Client Site</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="col-md-12">
+            <h3 class="card-title col-md-12 text-center">
+                <a href="/">
+                    Client Site
+                </a>
+            </h3>
+        </div>
+    </div>
+
+    <main class="login-form">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">Login</div>
+                        <div class="card-body">
+                            <form id="login-form">
+                                <div class="form-group row">
+                                    <label for="email_address" class="col-md-4 col-form-label text-md-right">E-Mail Address</label>
+                                    <div class="col-md-6">
+                                        <input type="text" id="email_address" class="form-control" name="email-address" required autofocus>
+                                    </div>
+                                </div>
+
+                                <div class="form-group row">
+                                    <label for="password" class="col-md-4 col-form-label text-md-right">Password</label>
+                                    <div class="col-md-6">
+                                        <input type="password" id="password" class="form-control" name="password" required>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 offset-md-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        Login
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="card-footer mt-4">
+                            <div class="d-flex justify-content-center links">
+                                Don't have an account? <a href="/Account/Register" class="ml-2">Register</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2020 - Voting Client Site
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script type="text/javascript">
+        $("#login-form").submit(function (e) {
+            e.preventDefault();
+
+            var email = $("#email_address").val()
+            var password = $("#password").val()
+            var body = '{"Email" :"' + email + '", "Password": "' + password + '"}'
+            var sessID = getCookie("SessionID")
+
+            if (sessID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        sessID = result.data.sessionId;
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                    }
+                });
+            } else {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "GET",
+                    async: false,
+                    success: function (result) {
+                        // already login
+                        if (result.data.isLogin) {
+                            window.location.href = "/"
+                        }
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/auth/account/login",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                data: body,
+                dataType: 'json',
+                method: "POST",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/"
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

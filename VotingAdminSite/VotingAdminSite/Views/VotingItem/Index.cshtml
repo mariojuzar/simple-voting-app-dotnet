@@ -1,0 +1,281 @@
+﻿@{
+    ViewData["Title"] = "Voting Item";
+}
+
+
+<div class="container">
+    <div class="row">
+        <h3 class="card-title col-md-3">
+            Voting Items
+        </h3>
+        <div class="col-md-2">
+            <a type="button" class="btn btn-primary" asp-area="" asp-controller="VotingItem" asp-action="Create">
+                Add New
+            </a>
+        </div>
+        <div class="col-md-4">
+            <input type="search" id="search-name-input" class="form-control" placeholder="Search Name" />
+        </div>
+        <div class="col-md-2" id="resultCategory">
+        </div>
+        <div class="col-md-1">
+            <select class="custom-select" id="page-size-input" onchange="searchFromSelect()">
+                <option selected value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+        </div>
+    </div>
+    <div class="row">
+        <div id="resultVotingItem">
+            
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="deleteVotingItem" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <form id="delete-item-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Delete Voting Item</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="col-form-label">Are you sure to delete this voting item?</label>
+                        <input type="hidden" id="deleted-id" />
+                        <input type="text" class="form-control" value="" disabled id="item-name-delete" name="item-name-delete">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+@section scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var sessionID = getCookie("SessionID");
+            if (sessionID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                        window.location.href = "Account/Login"
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/categories",
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        var itemSelect = '<select class="custom-select" id="categories-input" onchange="searchFromSelect()">'
+                            + '<option value="">All</option>'
+
+                        var x
+                        for (x = 0; x < result.data.length; x++) {
+                            itemSelect += '<option value="' + result.data[x].categoryId + '">' + result.data[x].name + '</option>'
+                        }
+                        itemSelect += '</select>'
+
+                        document.getElementById("resultCategory").innerHTML = itemSelect;
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                },
+                error: function () {
+                    setCookie("SessionID", sessionID, -1, "/")
+                }
+            });
+            searchVotingItem("")
+        });
+
+        function clickChangePagination(e) {
+            $("#pagination-input li.active").removeClass('active');
+            $(e).addClass('active');
+            searchVotingItem(buildQuerySearch());
+        }
+
+        function searchFromSelect() {
+            searchVotingItem(buildQuerySearch())
+        }
+
+        $("#search-name-input").keypress(function (event) {
+            if (event.which == 13) {
+                searchVotingItem(buildQuerySearch())
+            }
+        });
+
+        function buildQuerySearch() {
+            var nameSearch = $("#search-name-input").val()
+            var catInput = document.getElementById("categories-input");
+            var category = catInput.options[catInput.selectedIndex].value;
+            var sizeInput = document.getElementById("page-size-input");
+            var size = sizeInput.options[sizeInput.selectedIndex].value;
+            var page;
+
+            try {
+                page = $("#pagination-input li.active")[0].getAttribute("data-value") - 1;
+            }
+            catch(err) {
+                page = 0;
+            }
+
+            if (category == "") {
+                return "Page=" + page + "&Size=" + size + "&Name=" + nameSearch
+            }
+            return "Page=" + page + "&Size=" + size + "&Name=" + nameSearch + '&Categories=' + category
+        }
+
+        function searchVotingItem(query) {
+            var sessionID = getCookie("SessionID");
+            if (sessionID == "") {
+                $.ajax({
+                    url: "http://localhost:53147/gateway/auth/session",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    method: "POST",
+                    async: false,
+                    success: function (result) {
+                        setCookie("SessionID", result.data.sessionId, 24, "/")
+                        window.location.href = "Account/Login"
+                    }
+                });
+            }
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/voting-items/search?" + query,
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessionID
+                },
+                dataType: 'json',
+                method: "GET",
+                success: function (result) {
+                    if (result.status == "200") {
+                        var tbody = "<tbody>"
+                        var idx = 1
+                        var x
+                        for (x = 0; x < result.data.result.length; x++) {
+                            tbody += '<tr>'
+                                + '<td>' + idx + '</td>'
+                                + '<td>' + result.data.result[x].name + '</td>'
+                                + '<td>' + result.data.result[x].description + '</td>'
+                                + '<td>' + result.data.result[x].createdDate + '</td>'
+                                + '<td>' + result.data.result[x].supportersCount + '</td>'
+                                + '<td>' + result.data.result[x].dueDate + '</td>'
+                                + '<td>' + getCategories(result.data.result[x].categories) + '</td>'
+                                + '<td>'
+                                + '<a class="btn btn-info" href="/VotingItem/Edit/' + result.data.result[x].votingItemID + '" role="button">Edit</a> |'
+                                + '<a class="btn btn-danger getDateWhenDelete" href="#" role="button" data-id="' + result.data.result[x].votingItemID + '" data-name="' + result.data.result[x].name + '" data-toggle="modal" data-target="#deleteVotingItem">Delete</a>'
+                                + '</td>'
+                                + '</tr >';
+                            idx += 1
+                        }
+                        tbody += "</tbody>"
+
+                        var pagination = '<div>'
+                            + '<ul class="pagination" id=pagination-input>'
+
+                        for (i = 1; i <= result.data.totalPages; i++) {
+                            pagination += '<li class="page-item'
+                            if (i == result.data.currentPage + 1) {
+                                pagination += ' active'
+                            }
+                            pagination += '" onclick="clickChangePagination(this)" data-value="' +i + '"><a class="page-link" href="#">' + i + '</a></li>'
+                        }
+                        pagination += '</ul></div>'
+
+                        var table = '<div class="col-md-12">'
+                            + '<table class="table" >'
+                            + '<thead>'
+                            + '<tr>'
+                            + '<th scope="col">#</th>'
+                            + '<th scope="col">Name</th>'
+                            + '<th scope="col">Description</th>'
+                            + '<th scope="col">Created Date</th>'
+                            + '<th scope="col">Supporters Count</th>'
+                            + '<th scope="col">Due Date</th>'
+                            + '<th scope="col">Categories</th>'
+                            + '<th scope="col">Action</th>'
+                            + '</tr >'
+                            + '</thead>'
+                            + tbody
+                            + '</table>'
+                            + pagination
+                            + '</div >';
+
+                        document.getElementById("resultVotingItem").innerHTML = table;
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                },
+                error: function () {
+                    setCookie("SessionID", sessionID, -1, "/")
+                }
+            });
+        }
+
+        function getCategories(categories) {
+            var result = ""
+            var x
+            for (x = 0; x < categories.length; x++) {
+                result += categories[x].name + " "
+            }
+            return result
+        }
+
+        $(document).on("click", ".getDateWhenDelete", function () {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            $(".modal-body #deleted-id").val(id);
+            $(".modal-body #item-name-delete").val(name);
+        });
+
+        $("#delete-item-form").submit(function (e) {
+            var id = $("#deleted-id").val()
+            var sessID = getCookie("SessionID")
+            e.preventDefault();
+
+            $.ajax({
+                url: "http://localhost:53147/gateway/vote-service/voting-items/" + id,
+                contentType: 'application/json',
+                headers: {
+                    "SessionID": sessID
+                },
+                dataType: 'json',
+                method: "DELETE",
+                success: function (result) {
+                    if (result.status == "200") {
+                        window.location.href = "/VotingItem"
+                    } else if (result.status == "401") {
+                        window.location.href = "Account/Login"
+                    }
+                },
+                error: function () {
+                    setCookie("SessionID", sessionID, -1, "/")
+                }
+            });
+        });
+    </script>
+}
